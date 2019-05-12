@@ -1,0 +1,73 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Example app template
+Parameters:
+  StageName:
+    Type: String
+    Description: Name of stage
+    Default: production
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref AWS::StackName
+      Runtime: nodejs8.10
+      Role:
+        !GetAtt Role.Arn
+      Handler: handler.handler
+      Code: ./lambda
+  FunctionPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !GetAtt Function.Arn
+      Principal: 'apigateway.amazonaws.com'
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Ref AWS::StackName
+      EndpointConfiguration:
+        Types:
+        - REGIONAL
+  DefaultMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId:
+        !GetAtt
+        - RestApi
+        - RootResourceId
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Join ['/', [!Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions', !GetAtt Function.Arn, 'invocations']]
+  RestApiDeployment:
+    DependsOn:
+      - DefaultMethod
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref RestApi
+  RestApiProductionStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId:
+        !Ref RestApiDeployment
+      RestApiId: !Ref RestApi
+      StageName: !Ref StageName
+Outputs:
+  RestApiId:
+    Description: The ID of the RestAPI
+    Value: !Ref RestApi

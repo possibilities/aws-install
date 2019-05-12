@@ -1,0 +1,12 @@
+{
+  "name": "example",
+  "version": "0.0.0",
+  "license": "MIT",
+  "bin": {
+    "example": "./example"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.432.0",
+    "yargs": "^13.2.2"
+  }
+}
